@@ -51,6 +51,7 @@ def getInfo(url):
 
 		comment = m.split('<p class="review-body"')[1].split('>')[1].split('</p')[0].strip()
 		Review.append((date, author, rating, comment))
+	print 'Review'
 	#print Review
 
 def getInsurances(id):
@@ -69,7 +70,7 @@ def getInsurances(id):
 		for p in plans:
 			item_list.append(p['Name'])
 		Insurances.append((name, item_list))
-	print Insurances
+	# print Insurances
 
 
 #if __name__ == '__main__':
