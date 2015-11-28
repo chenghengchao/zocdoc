@@ -1,0 +1,16 @@
+create table doctor (
+	doc_id int primary key,
+	doc_name varchar(128) not null,
+	doc_gender varchar(10) ,
+	doc_city varchar(128) ,
+	doc_rating varchar(128) ,
+	doc_address1 varchar(128) ,
+	doc_address2 varchar(128) ,
+	doc_practice_name varchar(128) ,
+	doc_specialty_name varchar(128) ,
+	doc_sub_specialty_name varchar(128) ,
+	doc_title varchar(128) ,
+	doc_professional_statement text
+);
+
+
