@@ -1,11 +1,13 @@
 import urllib2
 import urllib
 import json
+import ConfigParser
 import Queue
 import threading
 import time
 import sys
 import re
+import os
 import string
 import logging
 import MySQLdb
@@ -652,9 +654,25 @@ if __name__ =='__main__':
                     filename='zocdoc.log',
                     filemode='a')
 
+
     try:
-        conn =  MySQLdb.connect(host="localhost", user="root",
-                passwd="yyjmac", db="test", port=3306)
+        cf = ConfigParser.ConfigParser()
+        cf.read('db.conf')
+
+        db_host = cf.get('db', 'db_host')
+        db_port = cf.get('db', 'db_port')
+        db_user = cf.get('db', 'db_user')
+        db_pass = cf.get('db', 'db_pass')
+        db_name = cf.get('db', 'db_name')
+        logging.info("Success to get db's config")
+    except Exception, e:
+        logging.error("Fail to get db's config, " + str(e))
+        ex.exit(0)
+
+
+    try:
+        conn =  MySQLdb.connect(host=db_host, user=db_user,
+                passwd=db_pass, db=db_name, port=int(db_port))
         cur = conn.cursor()
         set_inter_timeout = 'set interactive_timeout = 24*3600'
         cur.execute(set_inter_timeout)
