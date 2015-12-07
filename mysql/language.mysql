@@ -1,0 +1,11 @@
+create table language(
+    lang_id int primary key auto_increment,
+    lang_name varchar(128) not null
+);
+
+create table language_doc (
+    lang_id int,
+    doc_id int,
+    foreign key(doc_id) references doctor(doc_id),
+    foreign key(lang_id) references language(lang_id)
+);

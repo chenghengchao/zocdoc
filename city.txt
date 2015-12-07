@@ -1,0 +1,53 @@
+Albany
+Albuquerque
+Atlanta
+Austin
+Baltimore
+Baton Rouge
+Birmingham
+Boston
+Buffalo
+Charleston
+Charlotte
+Chicago
+Cleveland
+Colimbus
+Dallas
+Denver
+Detroit
+El Paso
+Fresno
+Houston
+Indianapolis
+Jersey City
+Kansas City
+Las Vegas
+Los Angeles
+Louisville
+Memphis
+Miami
+Milwaukee
+Nashville
+New Orleans
+New York
+Oklahoma City
+Omaha
+Orlando
+Philadelphia
+Phoenix
+Pittsburgh
+Portland
+Raleigh
+Salt Lake City
+San Antonio
+San Diego
+San Francisco
+Seattle
+St. Louis
+Syraacuse
+Tampa
+Tucson
+Tulsa
+Virginia Beach
+Washington
+Wichita

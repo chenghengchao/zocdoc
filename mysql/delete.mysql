@@ -1,0 +1,15 @@
+delete from badges_doc;
+delete from comment;
+delete from education_doc;
+delete from language_doc;
+delete from certification_doc;
+delete from specialty_doc;
+delete from insurance_doc;
+
+delete from badges;
+delete from education;
+delete from language;
+delete from certification;
+delete from doctor;
+delete from specialty;
+delete from insurance;

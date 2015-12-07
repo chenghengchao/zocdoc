@@ -1,0 +1,10 @@
+create table specialty (
+    spec_id int primary key auto_increment,
+    spec_name varchar(128) not null
+);
+create table specialty_doc (
+    doc_id int,
+    spec_id int,
+    foreign key(doc_id) references doctor(doc_id),
+    foreign key(spec_id) references specialty(spec_id)
+);

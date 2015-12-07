@@ -6,21 +6,239 @@ import threading
 import time
 import sys
 import re
-import pycurl
-import StringIO
+import string
 import logging
 import MySQLdb
-# from getInfo import get_info
 
 total_url = "https://www.zocdoc.com"
-sql_list = Queue.Queue()
-threads = []
-url_list = []
+lock = threading.Lock()
 Set = set()
+
+def get_badges(html, prof, cur):
+    Badges_pattern = re.compile(r'<div class="badge[\s\S]*?data-description')
+    Badges_res = Badges_pattern.findall(html)
+    Badges = []
+    for m in Badges_res:
+        Badges.append(m.split('title="')[1].split('"')[0])
+
+    if len(Badges) != 0:
+        for badges in Badges:
+            sql = 'select badges_id from badges where badges_name=\"' + badges + '\"'
+            try:
+                cur.execute(sql)
+                results = cur.fetchall()
+            except Exception, e:
+                logging.error('failed to get badge\'s id' + str(e))
+
+            if len(results) == 0:
+                sql = 'insert into badges(badges_name) values(\"' + badges + '\")'
+                try:
+                    cur.execute(sql)
+                    conn.commit()
+                    logging.info('Success to update badges with ' + badges)
+                except Exception, e:
+                    logging.error('failed to insert new badges to badges' + str(e))
+
+            sql = 'select badges_id from badges where badges_name=\"' + badges + '\"'
+            try:
+                cur.execute(sql)
+                results = cur.fetchall()
+            except Exception, e:
+                logging.error('Failed to get badge\'s id 2' + str(e))
+            badges_id = results[0][0]
+            sql = 'insert into badges_doc values( ' + str(prof['ProfId']) + ',' + str(badges_id) + ')'
+            try:
+                cur.execute(sql)
+                conn.commit()
+                logging.info('Success to insert into badges_doc ' + str(prof['ProfId']) + ' ' + str(badges_id))
+            except Exception, e:
+                logging.error('Failed to insert into badges_doc ' + str(e))
+
+def get_info_offline(url, prof, conn):
+
+    global lock
+    #getInsurances(url.split('?')[0].split('-')[-1])
+    logging.info('Start to get info offline ' + url)
+    try:
+        html = urllib2.urlopen(url, timeout = 15).read()
+    except Exception, e:
+        logging.error('Error to get info offline ' + str(e) + ' url = ' + url)
+        return
+
+    Profile_pattern = re.compile(r'<span class="docLongName[\s\S]*?</div>')
+    Profile_res = Profile_pattern.findall(html)
+    tmp = Profile_res[0].split('</span>')
+    name = tmp[0].split('>')[1]
+    suffix = tmp[1].split('>')[1]
+    profSpecTitle = tmp[2].split('</div>')[0].split('>')[-1]
+
+    Practice_name_pattern = re.compile(r'<span itemprop="branchOf" data-test="practice-name">[\s\S]*?</span>')
+    Practice_name_res = Practice_name_pattern.findall(html)
+    Practice_name = Practice_name_res[0].split('>')[1].split('<')[0]
+
+    Qual_pattern = re.compile(r'<h3>(Education|Language Spoken|Board Certifications|Specialties)(</h3>[\s\S]*?</div>)')
+    Qualificaton_res = Qual_pattern.findall(html)
+
+    # Qualificaton list of tuple of (qualification, item_list)
+    Qualificaton = []
+    for m in Qualificaton_res:
+        k = m[1].replace('\t', '')
+        res, num = re.compile(r'<[\s\S]*?>').subn('', k)
+        L = ('\r\n' + res).split('\r\n\r\n\r\n')
+        last = -1
+        if L[-2] == 'Less...':
+            last = -3
+        Qualificaton.append((m[0], L[1:last]))
+
+    lock.acquire()
+    cur = conn.cursor()
+    sql = 'insert into doctor values(' + str(prof['ProfId']) \
+                    + ',"' + prof['LongProfessionalName'] \
+                    + '","' + prof['Gender'] \
+                    + '","' + prof['State'] \
+                    + '","' + prof['City'] \
+                    + '","' + 'null' \
+                    + '","' + prof['Address1'] \
+                    + '","' + prof['Address2'] \
+                    + '","' + Practice_name \
+                    + '","' + prof['MainSpecialtyName'] \
+                    + '","' + profSpecTitle \
+                    + '","' + prof['Title'] \
+                    + '","' + '' \
+                    + '");'
+
+    cur = conn.cursor()
+    try:
+        logging.info('Prepare to insert doc ' + str(prof['ProfId']) + ' profile to db')
+        cur.execute(sql)
+        Set.add(prof['ProfId'])
+        logging.info(str(prof['ProfId']) + ' has been stored successfully')
+        conn.commit()
+    except Exception,e:
+        logging.error(str(prof['ProfId']) + ' fail to store' + str(e) + url)
+        cur.close()
+        lock.release()
+        return
+
+    get_badges(html, prof, cur)
+
+    for qua in Qualificaton:
+        if qua[0] == 'Education':
+            for edu in qua[1]:
+                sql = 'select edu_id from education where edu_name=\"' + edu + '\"'
+                try:
+                    cur.execute(sql)
+                    results = cur.fetchall()
+                    if len(results) == 0:
+                        logging.info(edu + ' not in table education, start to insert')
+                        sql = 'insert into education(edu_name) values(\"' + edu + '\")'
+                        cur.execute(sql)
+                        conn.commit()
+                        logging.info(edu + ' has been inserted into education successfully')
+                    sql = 'select edu_id from education where edu_name=\"' + edu + '\"'
+                    cur.execute(sql)
+                    results = cur.fetchall()
+                    for res in results:
+                        edu_id = res[0]
+
+                    sql = 'insert into education_doc values(\"' + str(edu_id) +'\",\"' + \
+                            str(prof['ProfId']) + '\")'
+                    cur.execute(sql)
+                    conn.commit()
+                    logging.info('success to insert education of doctor ' + str(prof['ProfId']))
+                except Exception, e:
+                    logging.error('err to insert education of doctor ' + str(prof['ProfId']) + str(e))
+        elif qua[0] == 'Languages Spoken':
+            for lang in qua[1]:
+                sql = 'select lang_id from language where lang_name=\"' + lang + '\"'
+                try:
+                    cur.execute(sql)
+                    results = cur.fetchall()
+                    if len(results) == 0:
+                        logging.info(lang + ' not in table language, start to insert')
+                        sql = 'insert into language(lang_name) values(\"' + lang + '\")'
+                        cur.execute(sql)
+                        conn.commit()
+                        logging.info(lang + ' has been inserted into language successfully')
+                    sql = 'select lang_id from language where lang_name = \"' + lang + '\"'
+                    cur.execute(sql)
+                    results = cur.fetchall()
+                    for res in results:
+                        lang_id = res[0]
+
+                    sql = 'insert into language_doc values(\"' + str(lang_id) + '\",\"' + \
+                            str(prof['ProfId']) + '\")'
+                    cur.execute(sql)
+                    conn.commit()
+                    logging.info('success to insert language of doctor ' + str(prof['ProfId']))
+                except Exception, e:
+                    logging.error('err to insert language of doctor ' + str(prof['ProfId']) + str(e))
+        elif qua[0] == 'Specialties':
+            for spec in qua[1]:
+                sql = 'select spec_id from specialty where spec_name=\"' + spec + '\"'
+                try:
+                    cur.execute(sql)
+                    results = cur.fetchall()
+                    if len(results) == 0:
+                        logging.info(spec + ' not in table specialty, start to insert')
+                        sql = 'insert into specialty(spec_name) values(\"' + spec + '\")'
+                        cur.execute(sql)
+                        conn.commit()
+                        logging.info(spec + ' has been inserted into specialty successfully')
+                    sql = 'select spec_id from specialty where spec_name = \"' + spec + '\"'
+                    cur.execute(sql)
+                    results = cur.fetchall()
+                    for res in results:
+                        spec_id = res[0]
+
+                    sql = 'insert into specialty_doc(spec_id, doc_id) values(' + str(spec_id) + ',' + \
+                            str(prof['ProfId']) + ')'
+                    cur.execute(sql)
+                    conn.commit()
+                    logging.info('success to insert specialty of doctor ' + str(prof['ProfId']))
+                except Exception, e:
+                    logging.error('err to insert specialty of doctor ' + str(prof['ProfId']) + str(e))
+        elif qua[0] == 'Board Certifications':
+            for cer in qua[1]:
+                sql = 'select cer_id from certification where cer_name=\"' + cer + '\"'
+                try:
+                    cur.execute(sql)
+                    results = cur.fetchall()
+                    if len(results) == 0:
+                        logging.info(cer + ' not in table certification, start to insert')
+                        sql = 'insert into certification(cer_name) values(\"' + cer + '\")'
+                        cur.execute(sql)
+                        conn.commit()
+                        logging.info(cer + ' has been inserted into certification successfully')
+                    sql = 'select cer_id from certification where cer_name = \"' + cer + '\"'
+                    cur.execute(sql)
+                    results = cur.fetchall()
+                    for res in results:
+                        cer_id = res[0]
+
+                    sql = 'insert into certification_doc(cer_id, doc_id) values(' + str(cer_id) + ',' + \
+                            str(prof['ProfId']) + ')'
+                    cur.execute(sql)
+                    conn.commit()
+                    logging.info('success to insert certification of doctor ' + str(prof['ProfId']))
+                except Exception, e:
+                    logging.error('err to insert certification of doctor ' + str(prof['ProfId']) + str(e))
+        else:
+            pass
+
+    cur.close()
+
+    lock.release()
 
 def get_info(url, prof, conn):
 
-    insurances = get_insurances(url.split('?')[0].split('-')[-1][0:-19])
+    global lock
+    if  (url.split('?')[0].split('-')[-1][0:-19]).isdigit() == False:
+        get_info_offline(url, prof, conn)
+        return
+    logging.info('Start to get info: ' + url)
+    insurances = get_insurances(prof['ProfId'])
+    # insurances = get_insurances(url.split('?')[0].split('-')[-1][0:-19])
     if insurances != False:
         try:
             resp = urllib2.urlopen(url, timeout=15)
@@ -31,17 +249,22 @@ def get_info(url, prof, conn):
         '''Profile is list of the name, suffix, sub Specilaty name'''
         Profile_pattern = re.compile(r'<h1 class="sg-h1 profile-doctor-name">[\s\S]*?</div>')
         Profile_res = Profile_pattern.findall(html)
-        tmp = Profile_res[0].replace(' ','')
-        res, num = re.compile(r'<[\s\S]*?>').subn('', tmp)
-        L = res.split('\n');
         Profile = []
-        Profile.append(L[1]); Profile.append(L[2]); Profile.append(L[-1]);
+        if len(Profile_res) != 0:
+            tmp = Profile_res[0].replace(' ','')
+            res, num = re.compile(r'<[\s\S]*?>').subn('', tmp)
+            L = res.split('\n');
+            Profile.append(L[1]); Profile.append(L[2]); Profile.append(L[-1]);
         # print Profile
 
         '''Doc_Rating is the rating of the doctor'''
         Doc_Rating_pattern = re.compile(r'<div class="sg-rating-big sg-rating-big-[\s\S]*?">')
         Doc_Rating_res = Doc_Rating_pattern.findall(html)
-        Doc_Rating = Doc_Rating_res[0].split('<div class="sg-rating-big sg-rating-big-')[1].split('">')[0].replace('_', '.')
+        Doc_Rating = ''
+        try:
+            Doc_Rating = Doc_Rating_res[0].split('<div class="sg-rating-big sg-rating-big-')[1].split('">')[0].replace('_', '.')
+        except:
+            pass
         # print Doc_Rating
 
         '''Practice_name is the list of Practice name'''
@@ -55,12 +278,12 @@ def get_info(url, prof, conn):
         # print Practice_name
 
         '''Badges is the Badges of the doctor'''
-        Badges_pattern = re.compile(r'<div class="badge[\s\S]*?data-description')
-        Badges_res = Badges_pattern.findall(html)
-        Badges = []
-        for m in Badges_res:
-            Badges.append(m.split('title="')[1].split('"')[0])
-        # print Badges
+        # Badges_pattern = re.compile(r'<div class="badge[\s\S]*?data-description')
+        # Badges_res = Badges_pattern.findall(html)
+        # Badges = []
+        # for m in Badges_res:
+        #     Badges.append(m.split('title="')[1].split('"')[0])
+        # # print Badges
 
         Qual_pattern = re.compile(r'<h3>(Education|Languages Spoken|Board Certifications|Specialties)(</h3>[\s\S]*?</div>)')
         Qualificaton_res = Qual_pattern.findall(html)
@@ -105,47 +328,247 @@ def get_info(url, prof, conn):
             else:
                 author = tmp;
             # rating is the tuple of label and the rating value of this review
-            rating = []
+            rating = {}
             rating_list = m.split('<div class="stars">')[1:]
             for r in rating_list:
                 score = r.split('<div class="sg-rating sg-rating-')[1][0:3].replace('_', '.')
                 name = r.split('<div class="explanation sg-h4">\n')[1].split('</div>')[0].strip()
-                rating.append((name, score))
+                rating[name] = score
 
             comment = m.split('<p class="review-body"')[1].split('>')[1].split('</p')[0].strip()
             Review.append((date, author, rating, comment))
         # print review
 
+        lock.acquire()
+
+        logging.info('Start to insert ' + str(prof['ProfId']) + ' to db')
         sql = 'insert into doctor values(' + str(prof['ProfId']) \
-                                           + ',"' + prof['LongProfessionalName'] \
-                                           + '","' + prof['Gender'] \
-                                           + '","' + prof['City'] \
-                                           + '","' + Doc_Rating \
-                                           + '","' + prof['Address1'] \
-                                           + '","' + prof['Address2'] \
-                                           + '","' + Practice_name[0] \
-                                           + '","' + prof['MainSpecialtyName'] \
-                                           + '","' + Profile[2] \
-                                           + '","' + prof['Title'] \
-                                           + '","' + Statement \
-                                           + '");'
+                + ',"' + prof['LongProfessionalName'] \
+                + '","' + prof['Gender'] \
+                + '","' + prof['State'] \
+                + '","' + prof['City'] \
+                + '","' + Doc_Rating \
+                + '","' + prof['Address1'] \
+                + '","' + prof['Address2'] \
+                + '","' + Practice_name[0] \
+                + '","' + prof['MainSpecialtyName'] \
+                + '","' + Profile[2] \
+                + '","' + prof['Title'] \
+                + '","' + Statement \
+                + '");'
         # print sql
         sql_list.put(sql)
         cur = conn.cursor()
         try:
+            logging.info('Prepare to insert doc ' + str(prof['ProfId']) + ' profile to db')
             cur.execute(sql)
-            print str(prof['ProfId']) + 'success'
+            Set.add(prof['ProfId'])
+            logging.info(str(prof['ProfId']) + ' has been stored successfully')
         except Exception,e:
-            print Statement
-            print str(prof['ProfId']), e
+            logging.error(str(prof['ProfId']) + ' fail to store' + str(e) + url)
+            cur.close()
+            lock.release()
+            return
 
         conn.commit()
-        # print 'here ' + url + ' ' + prof + '\n'
+
+        get_badges(html, prof, cur)
+        # if len(Badges) != 0:
+        #     for badges in Badges:
+        #         sql = 'select badges_id from badges where badges_name=\"' + badges + '\"'
+        #         try:
+        #             cur.execute(sql)
+        #             results = cur.fetchall()
+        #         except Exception, e:
+        #             logging.error('failed to get badge\'s id' + str(e))
+
+        #         if len(results) == 0:
+        #             sql = 'insert into badges(badges_name) values(\"' + badges + '\")'
+        #             try:
+        #                 cur.execute(sql)
+        #                 conn.commit()
+        #                 logging.info('Success to update badges with ' + badges)
+        #             except Exception, e:
+        #                 logging.error('failed to insert new badges to badges' + str(e))
+
+        #         sql = 'select badges_id from badges where badges_name=\"' + badges + '\"'
+        #         try:
+        #             cur.execute(sql)
+        #             results = cur.fetchall()
+        #         except Exception, e:
+        #             logging.error('Failed to get badge\'s id 2' + str(e))
+        #         badges_id = results[0][0]
+        #         sql = 'insert into badges_doc values( ' + str(prof['ProfId']) + ',' + str(badges_id) + ')'
+        #         try:
+        #             cur.execute(sql)
+        #             conn.commit()
+        #             logging.info('Success to insert into badges_doc ' + str(prof['ProfId']) + ' ' + str(badges_id))
+        #         except Exception, e:
+        #             logging.error('Failed to insert into badges_doc ' + str(e))
+
+        if len(Review) !=0:
+            for review in Review:
+                date = review[0]
+                author = review[1][3:]
+                comment = review[3]
+                rating = review[2]
+                overall_rating = rating.get('Overall Rating', '')
+                bedside_rating = rating.get('Bedside Manner', '')
+                wait_time = rating.get('Wait Time', '')
+                sql = 'insert into comment(doc_id, comm_time, comm_author,\
+                        overall_rating, bedside_rating, wait_time, content) \
+                        values(\"' + str(prof['ProfId']) + \
+                        '\",\"' + date + '\",\"' + \
+                        author + '\",\"' + overall_rating + '\",\"' + bedside_rating + '\",\"' + \
+                        wait_time + '\",\"' +  comment + '\")'
+
+                try:
+                    cur.execute(sql)
+                    conn.commit()
+                    logging.info('insert into comment success ' + str(prof['ProfId']))
+                except Exception, e:
+                    logging.info('insert into comment error ' + str(prof['ProfId']) + str(e))
+
+        for qua in Qualificaton:
+            if qua[0] == 'Education':
+                for edu in qua[1]:
+                    sql = 'select edu_id from education where edu_name=\"' + edu + '\"'
+                    try:
+                        cur.execute(sql)
+                        results = cur.fetchall()
+                        if len(results) == 0:
+                            logging.info(edu + ' not in table education, start to insert')
+                            sql = 'insert into education(edu_name) values(\"' + edu + '\")'
+                            cur.execute(sql)
+                            conn.commit()
+                            logging.info(edu + ' has been inserted into education successfully')
+                        sql = 'select edu_id from education where edu_name=\"' + edu + '\"'
+                        cur.execute(sql)
+                        results = cur.fetchall()
+                        for res in results:
+                            edu_id = res[0]
+
+                        sql = 'insert into education_doc values(\"' + str(edu_id) +'\",\"' + \
+                                str(prof['ProfId']) + '\")'
+                        cur.execute(sql)
+                        conn.commit()
+                        logging.info('success to insert education of doctor ' + str(prof['ProfId']))
+                    except Exception, e:
+                        logging.error('err to insert education of doctor ' + str(prof['ProfId']) + str(e))
+            elif qua[0] == 'Languages Spoken':
+                for lang in qua[1]:
+                    sql = 'select lang_id from language where lang_name=\"' + lang + '\"'
+                    try:
+                        cur.execute(sql)
+                        results = cur.fetchall()
+                        if len(results) == 0:
+                            logging.info(lang + ' not in table language, start to insert')
+                            sql = 'insert into language(lang_name) values(\"' + lang + '\")'
+                            cur.execute(sql)
+                            conn.commit()
+                            logging.info(lang + ' has been inserted into language successfully')
+                        sql = 'select lang_id from language where lang_name = \"' + lang + '\"'
+                        cur.execute(sql)
+                        results = cur.fetchall()
+                        for res in results:
+                            lang_id = res[0]
+
+                        sql = 'insert into language_doc values(\"' + str(lang_id) + '\",\"' + \
+                                str(prof['ProfId']) + '\")'
+                        cur.execute(sql)
+                        conn.commit()
+                        logging.info('success to insert language of doctor ' + str(prof['ProfId']))
+                    except Exception, e:
+                        logging.error('err to insert language of doctor ' + str(prof['ProfId']) + str(e))
+            elif qua[0] == 'Specialties':
+                for spec in qua[1]:
+                    sql = 'select spec_id from specialty where spec_name=\"' + spec + '\"'
+                    try:
+                        cur.execute(sql)
+                        results = cur.fetchall()
+                        if len(results) == 0:
+                            logging.info(spec + ' not in table specialty, start to insert')
+                            sql = 'insert into specialty(spec_name) values(\"' + spec + '\")'
+                            cur.execute(sql)
+                            conn.commit()
+                            logging.info(spec + ' has been inserted into specialty successfully')
+                        sql = 'select spec_id from specialty where spec_name = \"' + spec + '\"'
+                        cur.execute(sql)
+                        results = cur.fetchall()
+                        for res in results:
+                            spec_id = res[0]
+
+                        sql = 'insert into specialty_doc(spec_id, doc_id) values(' + str(spec_id) + ',' + \
+                                str(prof['ProfId']) + ')'
+                        cur.execute(sql)
+                        conn.commit()
+                        logging.info('success to insert specialty of doctor ' + str(prof['ProfId']))
+                    except Exception, e:
+                        logging.error('err to insert specialty of doctor ' + str(prof['ProfId']) + str(e))
+            elif qua[0] == 'Board Certifications':
+                for cer in qua[1]:
+                    sql = 'select cer_id from certification where cer_name=\"' + cer + '\"'
+                    try:
+                        cur.execute(sql)
+                        results = cur.fetchall()
+                        if len(results) == 0:
+                            logging.info(cer + ' not in table certification, start to insert')
+                            sql = 'insert into certification(cer_name) values(\"' + cer + '\")'
+                            cur.execute(sql)
+                            conn.commit()
+                            logging.info(cer + ' has been inserted into certification successfully')
+                        sql = 'select cer_id from certification where cer_name = \"' + cer + '\"'
+                        cur.execute(sql)
+                        results = cur.fetchall()
+                        for res in results:
+                            cer_id = res[0]
+
+                        sql = 'insert into certification_doc(cer_id, doc_id) values(' + str(cer_id) + ',' + \
+                                str(prof['ProfId']) + ')'
+                        cur.execute(sql)
+                        conn.commit()
+                        logging.info('success to insert certification of doctor ' + str(prof['ProfId']))
+                    except Exception, e:
+                        logging.error('err to insert certification of doctor ' + str(prof['ProfId']) + str(e))
+            else:
+                pass
+
+
+        for insurance in insurances:
+            insu = insurance[0]
+            if len(insu) == 0:
+                continue
+            sql = 'select insu_id from insurance where insu_name=\"' + insu + '\"'
+            try:
+                cur.execute(sql)
+                results = cur.fetchall()
+                if len(results) == 0:
+                    logging.info(insu + ' not in table insurance, start to insert')
+                    sql = 'insert into insurance(insu_name) values(\"' + insu + '\")'
+                    cur.execute(sql)
+                    conn.commit()
+                    logging.info(insu + ' has been inserted into insurance successfully')
+                sql = 'select insu_id from insurance where insu_name = \"' + insu + '\"'
+                cur.execute(sql)
+                results = cur.fetchall()
+                for res in results:
+                    insu_id = res[0]
+
+                sql = 'insert into insurance_doc(insu_id, doc_id) values(' + str(insu_id) + ',' + \
+                        str(prof['ProfId']) + ')'
+                cur.execute(sql)
+                conn.commit()
+                logging.info('success to insert insurance of doctor ' + str(prof['ProfId']))
+            except Exception, e:
+                logging.error('err to insert insurance of doctor ' + str(prof['ProfId']) + str(e))
+
+        cur.close()
+        lock.release()
 
 def get_insurances(id):
     reload(sys)
     sys.setdefaultencoding('utf-8')
-    url = 'https://www.zocdoc.com/insuranceinformation/ProfessionalInsurances?id=' + id
+    url = 'https://www.zocdoc.com/insuranceinformation/ProfessionalInsurances?id=' + str(id)
     try:
         resp = urllib2.urlopen(url, timeout=15).read()
         data = json.loads(resp[8:])['Carriers']
@@ -159,11 +582,13 @@ def get_insurances(id):
             Insurances.append((name, item_list))
         return Insurances
     except Exception, e:
-        print 'error in get_surances( ' + str(id) + ' )', e
+        logging.error('error in get_surances( ' + str(id) + ' )' + str(e))
         return False
 
-def GetDoctor(offset, speciality, conn):
+def get_doctor(offset, speciality, city, conn):
+    logging.info('Get ' + city + '  ' + str(speciality) + ' ' + str(offset))
     params = {"HospitalId": -1,
+            "Address": city,
             "InsuranceId":-1,
             "InsurancePlanId":-1,
             "SpecialtyId": speciality,
@@ -183,26 +608,24 @@ def GetDoctor(offset, speciality, conn):
 
     url = "https://www.zocdoc.com/search/searchresults?" + data
     try:
-        resp = urllib.urlopen(url)
+        resp = urllib2.urlopen(url, timeout=5)
         strAns = resp.read()
         cnt = 0
         strJson = json.loads(strAns[8:])
+        has = strJson['model']['NoResultsHeader']
         tmpp = strJson['model']['Doctors']
-        # print speciality, offset, len(tmpp)
 
+        threads = []
         for i in range(len(tmpp)):
             doc_url = total_url + tmpp[i]['ProfReviewUrl']
-            url_list.append(doc_url)
+            tmpp[i]['ProfId'] = tmpp[i]['Identifier']['Id']
+            doc_id = tmpp[i]['ProfId']
+            if doc_id in Set:
+                logging.info(str(doc_id) + ' has already in db')
+                continue
             t = threading.Thread(target=get_info, args=(doc_url, tmpp[i], conn))
             t.start()
             threads.append(t)
-            doc_id = tmpp[i]['ProfId']
-            Set.add(doc_id)
-            doc_name = tmpp[i]['LongProfessionalName']
-            doc_title = tmpp[i]['Title']
-            doc_gender = tmpp[i]['Gender']
-            doc_state = tmpp[i]['State']
-            doc_spectialty = tmpp[i]['DisplaySpectialtyName']
             # print doc_url + doc_spectialty + doc_state
             # print or store in db here
             cnt += 1
@@ -210,57 +633,68 @@ def GetDoctor(offset, speciality, conn):
             return True
         else:
             return False
+        for thread in threads:
+            thread.join()
     except Exception, e:
+        logging.error('exception has found in doctor\'s list' + str(e))
         return True
 
-cnt_doctor = 10
+cnt_doctor = 100
 
 start = time.time()
 specialty = []
+
 if __name__ =='__main__':
+
+    logging.basicConfig(level=logging.INFO,
+                    format = '%(asctime)s %(filename)s[line:%(lineno)d] %(levelname)s %(message)s',
+                    datefmt = '%a, %d %b %Y %H:%M:%S',
+                    filename='zocdoc.log',
+                    filemode='a')
 
     try:
         conn =  MySQLdb.connect(host="localhost", user="root",
                 passwd="yyjmac", db="test", port=3306)
         cur = conn.cursor()
-        # cur.execute("select * from test")
-        # results = cur.fetchmany(100)
-        # for res in results:
-        #     print res
+        set_inter_timeout = 'set interactive_timeout = 24*3600'
+        cur.execute(set_inter_timeout)
+        set_wait_timeout = 'set wait_timeout = 24*3600'
+        cur.execute(set_wait_timeout)
+        logging.info('Connect to mysql success')
     except MySQLdb.Error, e:
-        print 'Connect to mysql error'
+        logging.error('Connect to mysql error')
         exit(0)
 
-    GetDoctor(0, 98, conn)
+    try:
+        cur.execute('select doc_id from doctor')
+        results = cur.fetchall()
+        for res in results:
+            logging.info(str(res[0]) + ' in db')
+            Set.add(res[0])
+        logging.info("success to load doc_id from db")
+    except:
+        logging.error("error to load doc_id from db")
 
-    for th in threads:
-        th.join()
 
-    # try:
-    #     cur.execute("select * from test")
-    #     results = cur.fetchall()
-    #     for res in results:
-    #         print res
-    # except Exception,e:
-    #     print e
+    f_object = open('specialty.txt', 'r')
+    f_city = open('city.txt', 'r')
+
+    for line in f_object:
+       line_1 = line.split(',')
+       specialty.append(line_1[0][1:])
+    f_object.close()
+
+    for city in f_city:
+        city = city.strip()
+        for spe_id in specialty:
+            for offset in range(0, cnt_doctor, 10):
+                if get_doctor(offset, spe_id, city, conn) == False:
+                    break
+    f_city.close()
 
     cur.close()
     conn.close()
-    # while sql_list.empty() == False:
-    #    print sql_list.get()
-    # f_object = open('specialty.txt', 'r')
-
-    # for line in f_object:
-    #    line_1 = line.split(',')
-    #    specialty.append(line_1[0][1:])
-    # f_object.close()
-
-    # for spe_id in specialty:
-    #     for offset in range(0, cnt_doctor, 10):
-    #         if GetDoctor(offset, spe_id, cur) == False:
-    #             break
-
-    # for th in threads:
-    #     th.join()
+    logging.info('Close connect to mysql success')
+    logging.info('\n\n\n\n\n\n')
 
     print time.time() - start

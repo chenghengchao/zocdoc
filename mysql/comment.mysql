@@ -1,0 +1,12 @@
+drop table if exists comment;
+create table comment (
+    comm_id int primary key auto_increment,
+    doc_id int ,
+    comm_time varchar(128),
+    comm_author varchar(128),
+    overall_rating varchar(20),
+    bedside_rating varchar(20),
+    wait_time varchar(20),
+    content text,
+    foreign key(doc_id) references doctor(doc_id)
+);

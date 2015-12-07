@@ -1,0 +1,11 @@
+create table education (
+    edu_id int primary key auto_increment,
+    edu_name varchar(1024) not null
+);
+
+create table education_doc (
+    edu_id int,
+    doc_id int,
+    foreign key(doc_id) references doctor(doc_id),
+    foreign key(edu_id) references education(edu_id)
+);

@@ -1,0 +1,11 @@
+create table certification (
+    cer_id int primary key auto_increment,
+    cer_name varchar(1024) not null
+);
+
+create table certification_doc (
+    cer_id int,
+    doc_id int,
+    foreign key(doc_id) references doctor(doc_id),
+    foreign key(cer_id) references certification(cer_id)
+);

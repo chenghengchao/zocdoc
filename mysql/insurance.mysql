@@ -1,0 +1,11 @@
+create table insurance(
+    insu_id int primary key auto_increment,
+    insu_name varchar(128) not null
+);
+
+create table insurance_doc (
+    doc_id int,
+    insu_id int,
+    foreign key(doc_id) references doctor(doc_id),
+    foreign key(insu_id) references insurance(insu_id)
+);

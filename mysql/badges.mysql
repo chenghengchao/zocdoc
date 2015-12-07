@@ -1,0 +1,16 @@
+drop table if exists badges_doc;
+drop table if exists badges;
+
+create table badges (
+    badges_id int primary key auto_increment,
+    badges_name varchar(128) not null
+);
+
+create table badges_doc (
+    doc_id int,
+    badges_id int,
+    foreign key(doc_id) references doctor(doc_id),
+    foreign key(badges_id) references badges(badges_id)
+);
+
+
