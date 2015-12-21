@@ -375,38 +375,6 @@ def get_info(url, prof, conn):
         conn.commit()
 
         get_badges(html, prof, cur)
-        # if len(Badges) != 0:
-        #     for badges in Badges:
-        #         sql = 'select badges_id from badges where badges_name=\"' + badges + '\"'
-        #         try:
-        #             cur.execute(sql)
-        #             results = cur.fetchall()
-        #         except Exception, e:
-        #             logging.error('failed to get badge\'s id' + str(e))
-
-        #         if len(results) == 0:
-        #             sql = 'insert into badges(badges_name) values(\"' + badges + '\")'
-        #             try:
-        #                 cur.execute(sql)
-        #                 conn.commit()
-        #                 logging.info('Success to update badges with ' + badges)
-        #             except Exception, e:
-        #                 logging.error('failed to insert new badges to badges' + str(e))
-
-        #         sql = 'select badges_id from badges where badges_name=\"' + badges + '\"'
-        #         try:
-        #             cur.execute(sql)
-        #             results = cur.fetchall()
-        #         except Exception, e:
-        #             logging.error('Failed to get badge\'s id 2' + str(e))
-        #         badges_id = results[0][0]
-        #         sql = 'insert into badges_doc values( ' + str(prof['ProfId']) + ',' + str(badges_id) + ')'
-        #         try:
-        #             cur.execute(sql)
-        #             conn.commit()
-        #             logging.info('Success to insert into badges_doc ' + str(prof['ProfId']) + ' ' + str(badges_id))
-        #         except Exception, e:
-        #             logging.error('Failed to insert into badges_doc ' + str(e))
 
         if len(Review) !=0:
             for review in Review:
@@ -589,7 +557,8 @@ def get_insurances(id):
 
 def get_doctor(offset, speciality, city, conn):
     logging.info('Get ' + city + '  ' + str(speciality) + ' ' + str(offset))
-    params = {"HospitalId": -1,
+    params = {
+            "HospitalId": -1,
             "Address": city,
             "InsuranceId":-1,
             "InsurancePlanId":-1,
@@ -700,14 +669,16 @@ if __name__ =='__main__':
     for line in f_object:
        line_1 = line.split(',')
        specialty.append(line_1[0][1:])
+
     f_object.close()
 
     for city in f_city:
         city = city.strip()
         for spe_id in specialty:
             for offset in range(0, cnt_doctor, 10):
-                if get_doctor(offset, spe_id, city, conn) == False:
-                    break
+                get_doctor(offset, spe_id, city, conn)
+                get_doctor(cnt_doctor - offset - 10, spe_id, city, conn)
+
     f_city.close()
 
     cur.close()

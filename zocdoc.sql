@@ -92,7 +92,7 @@ CREATE TABLE `comment` (
   `overall_rating` varchar(20) DEFAULT NULL,
   `bedside_rating` varchar(20) DEFAULT NULL,
   `wait_time` varchar(20) DEFAULT NULL,
-  `content` text,
+  `content` varchar(2000),
   PRIMARY KEY (`comm_id`),
   KEY `doc_id` (`doc_id`),
   CONSTRAINT `comment_ibfk_1` FOREIGN KEY (`doc_id`) REFERENCES `doctor` (`doc_id`)
@@ -119,7 +119,7 @@ CREATE TABLE `doctor` (
   `doc_specialty_name` varchar(128) DEFAULT NULL,
   `doc_sub_specialty_name` varchar(128) DEFAULT NULL,
   `doc_title` varchar(128) DEFAULT NULL,
-  `doc_professional_statement` text,
+  `doc_professional_statement` varchar(2000),
   PRIMARY KEY (`doc_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
