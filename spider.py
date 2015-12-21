@@ -610,6 +610,7 @@ def get_doctor(offset, speciality, city, conn):
         logging.error('exception has found in doctor\'s list' + str(e))
         return True
 
+# the sys can only crawl 100 doctors per query url
 cnt_doctor = 100
 
 start = time.time()
@@ -617,6 +618,7 @@ specialty = []
 
 if __name__ =='__main__':
 
+    # initialize logging module
     logging.basicConfig(level=logging.INFO,
                     format = '%(asctime)s %(filename)s[line:%(lineno)d] %(levelname)s %(message)s',
                     datefmt = '%a, %d %b %Y %H:%M:%S',
@@ -624,6 +626,7 @@ if __name__ =='__main__':
                     filemode='a')
 
 
+    # read config file from "db.conf"
     try:
         cf = ConfigParser.ConfigParser()
         cf.read('db.conf')
@@ -636,9 +639,10 @@ if __name__ =='__main__':
         logging.info("Success to get db's config")
     except Exception, e:
         logging.error("Fail to get db's config, " + str(e))
-        ex.exit(0)
+        exit(0)
 
 
+    # try to connect to mysql
     try:
         conn =  MySQLdb.connect(host=db_host, user=db_user,
                 passwd=db_pass, db=db_name, port=int(db_port))
@@ -652,6 +656,7 @@ if __name__ =='__main__':
         logging.error('Connect to mysql error')
         exit(0)
 
+    # try to get all doc_id in db, then store them to "Set"
     try:
         cur.execute('select doc_id from doctor')
         results = cur.fetchall()
@@ -663,7 +668,10 @@ if __name__ =='__main__':
         logging.error("error to load doc_id from db")
 
 
+    # both of thesse two are useful to construct the query url
+    # specialty.txt has stored all the specialties
     f_object = open('specialty.txt', 'r')
+    # city.txt has stored all the cities
     f_city = open('city.txt', 'r')
 
     for line in f_object:
@@ -672,6 +680,7 @@ if __name__ =='__main__':
 
     f_object.close()
 
+    # start to crawl data city & specialty based
     for city in f_city:
         city = city.strip()
         for spe_id in specialty:
@@ -681,9 +690,11 @@ if __name__ =='__main__':
 
     f_city.close()
 
+    # close all the connect
     cur.close()
     conn.close()
     logging.info('Close connect to mysql success')
     logging.info('\n\n\n\n\n\n')
 
+    # print the the total run time
     print time.time() - start
