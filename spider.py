@@ -616,8 +616,7 @@ cnt_doctor = 100
 start = time.time()
 specialty = []
 
-if __name__ =='__main__':
-
+def main():
     # initialize logging module
     logging.basicConfig(level=logging.INFO,
                     format = '%(asctime)s %(filename)s[line:%(lineno)d] %(levelname)s %(message)s',
@@ -698,3 +697,8 @@ if __name__ =='__main__':
 
     # print the the total run time
     print time.time() - start
+
+if __name__ =='__main__':
+    while True:
+        main()
+        time.sleep(4 * 60 * 60)
