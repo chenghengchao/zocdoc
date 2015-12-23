@@ -69,14 +69,20 @@ def get_info_offline(url, prof, conn):
 
     Profile_pattern = re.compile(r'<span class="docLongName[\s\S]*?</div>')
     Profile_res = Profile_pattern.findall(html)
-    tmp = Profile_res[0].split('</span>')
-    name = tmp[0].split('>')[1]
-    suffix = tmp[1].split('>')[1]
-    profSpecTitle = tmp[2].split('</div>')[0].split('>')[-1]
+    name = ''
+    suffix = ''
+    profSpecTitle = ''
+    if len(Profile_res) > 0:
+        tmp = Profile_res[0].split('</span>')
+        name = tmp[0].split('>')[1]
+        suffix = tmp[1].split('>')[1]
+        profSpecTitle = tmp[2].split('</div>')[0].split('>')[-1]
 
     Practice_name_pattern = re.compile(r'<span itemprop="branchOf" data-test="practice-name">[\s\S]*?</span>')
     Practice_name_res = Practice_name_pattern.findall(html)
-    Practice_name = Practice_name_res[0].split('>')[1].split('<')[0]
+    Practice_name = ''
+    if len(Practice_name_res) > 0:
+        Practice_name = Practice_name_res[0].split('>')[1].split('<')[0]
 
     Qual_pattern = re.compile(r'<h3>(Education|Language Spoken|Board Certifications|Specialties)(</h3>[\s\S]*?</div>)')
     Qualificaton_res = Qual_pattern.findall(html)
