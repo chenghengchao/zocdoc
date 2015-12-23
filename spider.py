@@ -16,7 +16,7 @@ total_url = "https://www.zocdoc.com"
 lock = threading.Lock()
 Set = set()
 
-def get_badges(html, prof, cur):
+def get_badges(html, prof, cur, conn):
     Badges_pattern = re.compile(r'<div class="badge[\s\S]*?data-description')
     Badges_res = Badges_pattern.findall(html)
     Badges = []
@@ -37,7 +37,7 @@ def get_badges(html, prof, cur):
                 try:
                     cur.execute(sql)
                     conn.commit()
-                    logging.info('Success to update badges with ' + badges)
+                    # logging.info('Success to update badges with ' + badges)
                 except Exception, e:
                     logging.error('failed to insert new badges to badges' + str(e))
 
@@ -52,7 +52,7 @@ def get_badges(html, prof, cur):
             try:
                 cur.execute(sql)
                 conn.commit()
-                logging.info('Success to insert into badges_doc ' + str(prof['ProfId']) + ' ' + str(badges_id))
+                # logging.info('Success to insert into badges_doc ' + str(prof['ProfId']) + ' ' + str(badges_id))
             except Exception, e:
                 logging.error('Failed to insert into badges_doc ' + str(e))
 
@@ -60,7 +60,7 @@ def get_info_offline(url, prof, conn):
 
     global lock
     #getInsurances(url.split('?')[0].split('-')[-1])
-    logging.info('Start to get info offline ' + url)
+    # logging.info('Start to get info offline ' + url)
     try:
         html = urllib2.urlopen(url, timeout = 15).read()
     except Exception, e:
@@ -111,10 +111,10 @@ def get_info_offline(url, prof, conn):
 
     cur = conn.cursor()
     try:
-        logging.info('Prepare to insert doc ' + str(prof['ProfId']) + ' profile to db')
+        # logging.info('Prepare to insert doc ' + str(prof['ProfId']) + ' profile to db')
         cur.execute(sql)
         Set.add(prof['ProfId'])
-        logging.info(str(prof['ProfId']) + ' has been stored successfully')
+        # logging.info(str(prof['ProfId']) + ' has been stored successfully')
         conn.commit()
     except Exception,e:
         logging.error(str(prof['ProfId']) + ' fail to store' + str(e) + url)
@@ -122,7 +122,7 @@ def get_info_offline(url, prof, conn):
         lock.release()
         return
 
-    get_badges(html, prof, cur)
+    get_badges(html, prof, cur, conn)
 
     for qua in Qualificaton:
         if qua[0] == 'Education':
@@ -132,11 +132,11 @@ def get_info_offline(url, prof, conn):
                     cur.execute(sql)
                     results = cur.fetchall()
                     if len(results) == 0:
-                        logging.info(edu + ' not in table education, start to insert')
+                        # logging.info(edu + ' not in table education, start to insert')
                         sql = 'insert into education(edu_name) values(\"' + edu + '\")'
                         cur.execute(sql)
                         conn.commit()
-                        logging.info(edu + ' has been inserted into education successfully')
+                        # logging.info(edu + ' has been inserted into education successfully')
                     sql = 'select edu_id from education where edu_name=\"' + edu + '\"'
                     cur.execute(sql)
                     results = cur.fetchall()
@@ -147,7 +147,7 @@ def get_info_offline(url, prof, conn):
                             str(prof['ProfId']) + '\")'
                     cur.execute(sql)
                     conn.commit()
-                    logging.info('success to insert education of doctor ' + str(prof['ProfId']))
+                    # logging.info('success to insert education of doctor ' + str(prof['ProfId']))
                 except Exception, e:
                     logging.error('err to insert education of doctor ' + str(prof['ProfId']) + str(e))
         elif qua[0] == 'Languages Spoken':
@@ -157,11 +157,11 @@ def get_info_offline(url, prof, conn):
                     cur.execute(sql)
                     results = cur.fetchall()
                     if len(results) == 0:
-                        logging.info(lang + ' not in table language, start to insert')
+                        # logging.info(lang + ' not in table language, start to insert')
                         sql = 'insert into language(lang_name) values(\"' + lang + '\")'
                         cur.execute(sql)
                         conn.commit()
-                        logging.info(lang + ' has been inserted into language successfully')
+                        # logging.info(lang + ' has been inserted into language successfully')
                     sql = 'select lang_id from language where lang_name = \"' + lang + '\"'
                     cur.execute(sql)
                     results = cur.fetchall()
@@ -172,7 +172,7 @@ def get_info_offline(url, prof, conn):
                             str(prof['ProfId']) + '\")'
                     cur.execute(sql)
                     conn.commit()
-                    logging.info('success to insert language of doctor ' + str(prof['ProfId']))
+                    # logging.info('success to insert language of doctor ' + str(prof['ProfId']))
                 except Exception, e:
                     logging.error('err to insert language of doctor ' + str(prof['ProfId']) + str(e))
         elif qua[0] == 'Specialties':
@@ -182,11 +182,11 @@ def get_info_offline(url, prof, conn):
                     cur.execute(sql)
                     results = cur.fetchall()
                     if len(results) == 0:
-                        logging.info(spec + ' not in table specialty, start to insert')
+                        # logging.info(spec + ' not in table specialty, start to insert')
                         sql = 'insert into specialty(spec_name) values(\"' + spec + '\")'
                         cur.execute(sql)
                         conn.commit()
-                        logging.info(spec + ' has been inserted into specialty successfully')
+                        # logging.info(spec + ' has been inserted into specialty successfully')
                     sql = 'select spec_id from specialty where spec_name = \"' + spec + '\"'
                     cur.execute(sql)
                     results = cur.fetchall()
@@ -197,7 +197,7 @@ def get_info_offline(url, prof, conn):
                             str(prof['ProfId']) + ')'
                     cur.execute(sql)
                     conn.commit()
-                    logging.info('success to insert specialty of doctor ' + str(prof['ProfId']))
+                    # logging.info('success to insert specialty of doctor ' + str(prof['ProfId']))
                 except Exception, e:
                     logging.error('err to insert specialty of doctor ' + str(prof['ProfId']) + str(e))
         elif qua[0] == 'Board Certifications':
@@ -207,11 +207,11 @@ def get_info_offline(url, prof, conn):
                     cur.execute(sql)
                     results = cur.fetchall()
                     if len(results) == 0:
-                        logging.info(cer + ' not in table certification, start to insert')
+                        # logging.info(cer + ' not in table certification, start to insert')
                         sql = 'insert into certification(cer_name) values(\"' + cer + '\")'
                         cur.execute(sql)
                         conn.commit()
-                        logging.info(cer + ' has been inserted into certification successfully')
+                        # logging.info(cer + ' has been inserted into certification successfully')
                     sql = 'select cer_id from certification where cer_name = \"' + cer + '\"'
                     cur.execute(sql)
                     results = cur.fetchall()
@@ -222,7 +222,7 @@ def get_info_offline(url, prof, conn):
                             str(prof['ProfId']) + ')'
                     cur.execute(sql)
                     conn.commit()
-                    logging.info('success to insert certification of doctor ' + str(prof['ProfId']))
+                    # logging.info('success to insert certification of doctor ' + str(prof['ProfId']))
                 except Exception, e:
                     logging.error('err to insert certification of doctor ' + str(prof['ProfId']) + str(e))
         else:
@@ -235,6 +235,7 @@ def get_info_offline(url, prof, conn):
 def get_info(url, prof, conn):
 
     global lock
+    logging.info('start to getinfo ' + str(url))
     if  (url.split('?')[0].split('-')[-1][0:-19]).isdigit() == False:
         get_info_offline(url, prof, conn)
         return
@@ -359,13 +360,12 @@ def get_info(url, prof, conn):
                 + '","' + Statement \
                 + '");'
         # print sql
-        sql_list.put(sql)
         cur = conn.cursor()
         try:
-            logging.info('Prepare to insert doc ' + str(prof['ProfId']) + ' profile to db')
+            # logging.info('Prepare to insert doc ' + str(prof['ProfId']) + ' profile to db')
             cur.execute(sql)
             Set.add(prof['ProfId'])
-            logging.info(str(prof['ProfId']) + ' has been stored successfully')
+            # logging.info(str(prof['ProfId']) + ' has been stored successfully')
         except Exception,e:
             logging.error(str(prof['ProfId']) + ' fail to store' + str(e) + url)
             cur.close()
@@ -374,7 +374,7 @@ def get_info(url, prof, conn):
 
         conn.commit()
 
-        get_badges(html, prof, cur)
+        get_badges(html, prof, cur, conn)
 
         if len(Review) !=0:
             for review in Review:
@@ -395,9 +395,9 @@ def get_info(url, prof, conn):
                 try:
                     cur.execute(sql)
                     conn.commit()
-                    logging.info('insert into comment success ' + str(prof['ProfId']))
+                    # logging.info('insert into comment success ' + str(prof['ProfId']))
                 except Exception, e:
-                    logging.info('insert into comment error ' + str(prof['ProfId']) + str(e))
+                    logging.error('insert into comment error ' + str(prof['ProfId']) + str(e))
 
         for qua in Qualificaton:
             if qua[0] == 'Education':
@@ -407,11 +407,11 @@ def get_info(url, prof, conn):
                         cur.execute(sql)
                         results = cur.fetchall()
                         if len(results) == 0:
-                            logging.info(edu + ' not in table education, start to insert')
+                            # logging.info(edu + ' not in table education, start to insert')
                             sql = 'insert into education(edu_name) values(\"' + edu + '\")'
                             cur.execute(sql)
                             conn.commit()
-                            logging.info(edu + ' has been inserted into education successfully')
+                            # logging.info(edu + ' has been inserted into education successfully')
                         sql = 'select edu_id from education where edu_name=\"' + edu + '\"'
                         cur.execute(sql)
                         results = cur.fetchall()
@@ -422,7 +422,7 @@ def get_info(url, prof, conn):
                                 str(prof['ProfId']) + '\")'
                         cur.execute(sql)
                         conn.commit()
-                        logging.info('success to insert education of doctor ' + str(prof['ProfId']))
+                        # logging.info('success to insert education of doctor ' + str(prof['ProfId']))
                     except Exception, e:
                         logging.error('err to insert education of doctor ' + str(prof['ProfId']) + str(e))
             elif qua[0] == 'Languages Spoken':
@@ -432,11 +432,11 @@ def get_info(url, prof, conn):
                         cur.execute(sql)
                         results = cur.fetchall()
                         if len(results) == 0:
-                            logging.info(lang + ' not in table language, start to insert')
+                            # logging.info(lang + ' not in table language, start to insert')
                             sql = 'insert into language(lang_name) values(\"' + lang + '\")'
                             cur.execute(sql)
                             conn.commit()
-                            logging.info(lang + ' has been inserted into language successfully')
+                            # logging.info(lang + ' has been inserted into language successfully')
                         sql = 'select lang_id from language where lang_name = \"' + lang + '\"'
                         cur.execute(sql)
                         results = cur.fetchall()
@@ -447,7 +447,7 @@ def get_info(url, prof, conn):
                                 str(prof['ProfId']) + '\")'
                         cur.execute(sql)
                         conn.commit()
-                        logging.info('success to insert language of doctor ' + str(prof['ProfId']))
+                        # logging.info('success to insert language of doctor ' + str(prof['ProfId']))
                     except Exception, e:
                         logging.error('err to insert language of doctor ' + str(prof['ProfId']) + str(e))
             elif qua[0] == 'Specialties':
@@ -457,11 +457,11 @@ def get_info(url, prof, conn):
                         cur.execute(sql)
                         results = cur.fetchall()
                         if len(results) == 0:
-                            logging.info(spec + ' not in table specialty, start to insert')
+                            # logging.info(spec + ' not in table specialty, start to insert')
                             sql = 'insert into specialty(spec_name) values(\"' + spec + '\")'
                             cur.execute(sql)
                             conn.commit()
-                            logging.info(spec + ' has been inserted into specialty successfully')
+                            # logging.info(spec + ' has been inserted into specialty successfully')
                         sql = 'select spec_id from specialty where spec_name = \"' + spec + '\"'
                         cur.execute(sql)
                         results = cur.fetchall()
@@ -472,7 +472,7 @@ def get_info(url, prof, conn):
                                 str(prof['ProfId']) + ')'
                         cur.execute(sql)
                         conn.commit()
-                        logging.info('success to insert specialty of doctor ' + str(prof['ProfId']))
+                        # logging.info('success to insert specialty of doctor ' + str(prof['ProfId']))
                     except Exception, e:
                         logging.error('err to insert specialty of doctor ' + str(prof['ProfId']) + str(e))
             elif qua[0] == 'Board Certifications':
@@ -482,11 +482,11 @@ def get_info(url, prof, conn):
                         cur.execute(sql)
                         results = cur.fetchall()
                         if len(results) == 0:
-                            logging.info(cer + ' not in table certification, start to insert')
+                            # logging.info(cer + ' not in table certification, start to insert')
                             sql = 'insert into certification(cer_name) values(\"' + cer + '\")'
                             cur.execute(sql)
                             conn.commit()
-                            logging.info(cer + ' has been inserted into certification successfully')
+                            # logging.info(cer + ' has been inserted into certification successfully')
                         sql = 'select cer_id from certification where cer_name = \"' + cer + '\"'
                         cur.execute(sql)
                         results = cur.fetchall()
@@ -497,7 +497,7 @@ def get_info(url, prof, conn):
                                 str(prof['ProfId']) + ')'
                         cur.execute(sql)
                         conn.commit()
-                        logging.info('success to insert certification of doctor ' + str(prof['ProfId']))
+                        # logging.info('success to insert certification of doctor ' + str(prof['ProfId']))
                     except Exception, e:
                         logging.error('err to insert certification of doctor ' + str(prof['ProfId']) + str(e))
             else:
@@ -513,11 +513,11 @@ def get_info(url, prof, conn):
                 cur.execute(sql)
                 results = cur.fetchall()
                 if len(results) == 0:
-                    logging.info(insu + ' not in table insurance, start to insert')
+                    # logging.info(insu + ' not in table insurance, start to insert')
                     sql = 'insert into insurance(insu_name) values(\"' + insu + '\")'
                     cur.execute(sql)
                     conn.commit()
-                    logging.info(insu + ' has been inserted into insurance successfully')
+                    # logging.info(insu + ' has been inserted into insurance successfully')
                 sql = 'select insu_id from insurance where insu_name = \"' + insu + '\"'
                 cur.execute(sql)
                 results = cur.fetchall()
@@ -528,7 +528,7 @@ def get_info(url, prof, conn):
                         str(prof['ProfId']) + ')'
                 cur.execute(sql)
                 conn.commit()
-                logging.info('success to insert insurance of doctor ' + str(prof['ProfId']))
+                # logging.info('success to insert insurance of doctor ' + str(prof['ProfId']))
             except Exception, e:
                 logging.error('err to insert insurance of doctor ' + str(prof['ProfId']) + str(e))
 
@@ -592,7 +592,7 @@ def get_doctor(offset, speciality, city, conn):
             tmpp[i]['ProfId'] = tmpp[i]['Identifier']['Id']
             doc_id = tmpp[i]['ProfId']
             if doc_id in Set:
-                logging.info(str(doc_id) + ' has already in db')
+                # logging.info(str(doc_id) + ' has already in db')
                 continue
             t = threading.Thread(target=get_info, args=(doc_url, tmpp[i], conn))
             t.start()
@@ -645,14 +645,21 @@ def main():
     try:
         conn =  MySQLdb.connect(host=db_host, user=db_user,
                 passwd=db_pass, db=db_name, port=int(db_port))
+        conn.set_character_set('utf8')
         cur = conn.cursor()
         set_inter_timeout = 'set interactive_timeout = 24*3600'
         cur.execute(set_inter_timeout)
         set_wait_timeout = 'set wait_timeout = 24*3600'
         cur.execute(set_wait_timeout)
+        set_character = 'set names utf8'
+        cur.execute(set_character)
+        set_character = 'set character set utf8'
+        cur.execute(set_character)
+        set_character = 'set character_set_connection=utf8'
+        cur.execute(set_character)
         logging.info('Connect to mysql success')
     except MySQLdb.Error, e:
-        logging.error('Connect to mysql error')
+        logging.error('Connect to mysql error' + str(e))
         exit(0)
 
     # try to get all doc_id in db, then store them to "Set"
@@ -660,7 +667,7 @@ def main():
         cur.execute('select doc_id from doctor')
         results = cur.fetchall()
         for res in results:
-            logging.info(str(res[0]) + ' in db')
+            # logging.info(str(res[0]) + ' in db')
             Set.add(res[0])
         logging.info("success to load doc_id from db")
     except:
